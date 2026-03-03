@@ -179,16 +179,59 @@ top_posts_df = load_top_posts()
 
 # ============ Header ============
 
-st.markdown("""
-<div class="brand-header">
-    <div class="brand-title">Social Media <span>Analytics</span></div>
-    <div class="brand-subtitle">Real-time performance tracking across all platforms</div>
+from datetime import datetime
+_now = datetime.now().strftime("%B %d, %Y · %I:%M %p")
+st.markdown(f"""
+<div style="background:linear-gradient(135deg,rgba(108,92,231,0.15) 0%,rgba(0,206,201,0.08) 100%);
+            border:1px solid rgba(108,92,231,0.2);border-radius:20px;padding:2rem 2.5rem;margin-bottom:2rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <div style="font-size:0.65rem;font-weight:700;color:#6C5CE7;text-transform:uppercase;
+                        letter-spacing:2px;margin-bottom:0.5rem;">JustPaid · Marketing Intelligence</div>
+            <div style="font-size:2rem;font-weight:800;color:#E2E2EA;line-height:1.1">
+                Social Media <span style="background:linear-gradient(135deg,#6C5CE7,#A29BFE,#00CEC9);
+                -webkit-background-clip:text;-webkit-text-fill-color:transparent;">Command Center</span>
+            </div>
+            <div style="font-size:0.85rem;color:#8A8A9A;margin-top:0.4rem;">
+                Real-time performance across YouTube · Instagram · LinkedIn · X
+            </div>
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:0.7rem;color:#5A5A6A;margin-bottom:0.3rem">Last updated</div>
+            <div style="font-size:0.85rem;color:#E2E2EA;font-weight:600">{_now}</div>
+            <div style="margin-top:0.6rem;display:flex;gap:0.5rem;justify-content:flex-end;">
+                <span style="background:rgba(0,184,148,0.15);color:#00B894;font-size:0.65rem;
+                             font-weight:700;padding:0.25rem 0.7rem;border-radius:20px;">● LIVE</span>
+                <span style="background:rgba(108,92,231,0.15);color:#A29BFE;font-size:0.65rem;
+                             font-weight:700;padding:0.25rem 0.7rem;border-radius:20px;">4 Platforms</span>
+            </div>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ============ KPI Cards ============
 
 if not metrics_df.empty:
+    # ── Quick Nav ────────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+        <a href="/Lead_Intelligence" target="_self" style="text-decoration:none">
+            <span style="background:rgba(255,69,0,0.12);color:#FF4500;border:1px solid rgba(255,69,0,0.2);
+                         font-size:0.72rem;font-weight:700;padding:0.35rem 0.9rem;border-radius:20px;
+                         cursor:pointer;transition:all 0.2s">🎯 Lead Intelligence</span>
+        </a>
+        <a href="/Competitive_Intel" target="_self" style="text-decoration:none">
+            <span style="background:rgba(0,184,148,0.1);color:#00B894;border:1px solid rgba(0,184,148,0.2);
+                         font-size:0.72rem;font-weight:700;padding:0.35rem 0.9rem;border-radius:20px;">⚔️ Competitive Intel</span>
+        </a>
+        <a href="/Content_Strategy" target="_self" style="text-decoration:none">
+            <span style="background:rgba(108,92,231,0.1);color:#A29BFE;border:1px solid rgba(108,92,231,0.2);
+                         font-size:0.72rem;font-weight:700;padding:0.35rem 0.9rem;border-radius:20px;">🧠 Content Strategy</span>
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div class="section-title">Platform Overview</div>', unsafe_allow_html=True)
 
     platform_order = ["YouTube", "Instagram", "LinkedIn", "Twitter"]
