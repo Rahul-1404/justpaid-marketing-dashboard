@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JustPaid — Social Intelligence Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --purple: #6C5CE7;
+    --cyan: #00CEC9;
+    --bg: #0A0A0F;
+    --card: #12121A;
+    --border: rgba(255,255,255,0.06);
+  }
+  * { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: #E2E2EA; overflow-x: hidden; }
+
+  /* Animated gradient background */
+  .bg-animate {
+    background: linear-gradient(135deg, #0A0A0F 0%, #0D0A1A 30%, #0A0A0F 60%, #0A0F1A 100%);
+    background-size: 400% 400%;
+    animation: gradShift 12s ease infinite;
+  }
+  @keyframes gradShift {
+    0%,100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Stars */
+  .stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .star {
+    position: absolute;
+    border-radius: 50%;
+    background: white;
+    animation: twinkle var(--d, 3s) ease-in-out infinite;
+    opacity: 0;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 0; transform: scale(0.8); }
+    50% { opacity: var(--op, 0.6); transform: scale(1); }
+  }
+
+  /* Gradient text */
+  .grad-text {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE, #00CEC9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad-text-warm {
+    background: linear-gradient(135deg, #A29BFE, #6C5CE7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+  }
+  .card-base {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  /* Floating pills */
+  .pill-float {
+    animation: floatPill var(--dur, 4s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes floatPill {
+    0%,100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* Fade in on scroll */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Bar chart animation */
+  .bar-fill {
+    width: 0%;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .bar-fill.animate { width: var(--target-width); }
+
+  /* Platform card hover glow */
+  .yt-card:hover { border-color: rgba(255,0,0,0.4); box-shadow: 0 0 30px rgba(255,0,0,0.12); }
+  .ig-card:hover { border-color: rgba(228,64,95,0.4); box-shadow: 0 0 30px rgba(228,64,95,0.12); }
+  .li-card:hover { border-color: rgba(10,102,194,0.5); box-shadow: 0 0 30px rgba(10,102,194,0.15); }
+  .tw-card:hover { border-color: rgba(29,161,242,0.4); box-shadow: 0 0 30px rgba(29,161,242,0.12); }
+  .platform-card { transition: all 0.3s ease; }
+
+  /* Lead signal cards */
+  .signal-card {
+    transition: all 0.25s ease;
+    border-left: 3px solid transparent;
+  }
+  .signal-card:hover { transform: translateX(4px); border-color: var(--purple); }
+  .signal-payroll { border-left-color: #00B894 !important; }
+  .signal-contractor { border-left-color: #FDCB6E !important; }
+  .signal-invoice { border-left-color: #A29BFE !important; }
+
+  /* Gap cards */
+  .gap-card { transition: all 0.3s ease; border-left: 3px solid var(--purple); }
+  .gap-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(108,92,231,0.15); }
+
+  /* Nav */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        backdrop-filter: blur(20px); background: rgba(10,10,15,0.85);
+        border-bottom: 1px solid var(--border); }
+
+  /* Section heading */
+  .section-eyebrow {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 3px; color: var(--purple);
+  }
+
+  /* Calendar pill */
+  .cal-pill {
+    display: inline-block; padding: 0.3rem 0.8rem;
+    border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+    margin: 0.2rem;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(108,92,231,0.4); border-radius: 2px; }
+
+  /* Number counter */
+  .counter { display: inline-block; }
+
+  @media (max-width: 768px) {
+    .platforms-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .gaps-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body class="bg-animate">
+
+<!-- NAV -->
+<nav>
+  <div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;height:60px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:1rem;font-weight:800;letter-spacing:-0.5px;">
+      <span class="grad-text">JustPaid</span>
+      <span style="color:#5A5A6A;font-weight:400;margin-left:0.5rem;font-size:0.8rem;">Social Intelligence</span>
+    </div>
+    <div style="display:flex;gap:1.5rem;font-size:0.78rem;color:#8A8A9A;">
+      <a href="#platforms" style="text-decoration:none;color:#8A8A9A;transition:color 0.2s" onmouseover="this.style.color='#E2E2EA'" onmouseout="this.style.color='#8A8A9A'">Overview</a>
+      <a href="#win" style="text-decoration:none;color:#8A8A9A;transition:color 0.2s" onmouseover="this.style.color='#E2E2EA'" onmouseout="this.style.color='#8A8A9A'">Competitive</a>
+      <a href="#leads" style="text-decoration:none;color:#8A8A9A;transition:color 0.2s" onmouseover="this.style.color='#E2E2EA'" onmouseout="this.style.color='#8A8A9A'">Leads</a>
+      <a href="#calendar" style="text-decoration:none;color:#8A8A9A;transition:color 0.2s" onmouseover="this.style.color='#E2E2EA'" onmouseout="this.style.color='#8A8A9A'">Q2 Plan</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:6rem 1.5rem 4rem;text-align:center;">
+  <!-- Stars -->
+  <div class="stars" id="stars"></div>
+
+  <!-- Glow blobs -->
+  <div style="position:absolute;top:20%;left:10%;width:400px;height:400px;background:radial-gradient(circle,rgba(108,92,231,0.12) 0%,transparent 70%);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:20%;right:10%;width:350px;height:350px;background:radial-gradient(circle,rgba(0,206,201,0.08) 0%,transparent 70%);pointer-events:none;"></div>
+
+  <div style="position:relative;z-index:1;max-width:820px;">
+    <!-- Eyebrow -->
+    <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(108,92,231,0.1);border:1px solid rgba(108,92,231,0.25);border-radius:20px;padding:0.35rem 1rem;margin-bottom:2rem;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#00B894;display:inline-block;animation:pulse 2s ease infinite;"></span>
+      <span style="font-size:0.72rem;font-weight:700;color:#A29BFE;text-transform:uppercase;letter-spacing:1.5px;">6 Months of Growth Data · Live</span>
+    </div>
+
+    <h1 style="font-size:clamp(2.8rem,7vw,5.5rem);font-weight:900;line-height:1.0;letter-spacing:-2px;margin-bottom:1.2rem;">
+      <span style="color:#E2E2EA;">JustPaid</span><br>
+      <span class="grad-text">Social Intelligence</span>
+    </h1>
+
+    <p style="font-size:1.15rem;color:#8A8A9A;font-weight:400;line-height:1.6;max-width:600px;margin:0 auto 3rem;">
+      4 platforms · 6 months of data · 1 story.<br>
+      How we outperformed giants with a lean, AI-powered content strategy.
+    </p>
+
+    <!-- Floating pills -->
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center;margin-bottom:3.5rem;">
+      <div class="pill-float glass" style="--dur:3.5s;--delay:0s;padding:0.5rem 1.2rem;font-size:0.8rem;font-weight:600;color:#00B894;">
+        ↑ +23% Followers QoQ
+      </div>
+      <div class="pill-float glass" style="--dur:4s;--delay:0.5s;padding:0.5rem 1.2rem;font-size:0.8rem;font-weight:600;color:#A29BFE;">
+        4.2% Engagement Rate
+      </div>
+      <div class="pill-float glass" style="--dur:3.8s;--delay:1s;padding:0.5rem 1.2rem;font-size:0.8rem;font-weight:600;color:#00CEC9;">
+        3× Industry Average
+      </div>
+      <div class="pill-float glass" style="--dur:4.2s;--delay:1.5s;padding:0.5rem 1.2rem;font-size:0.8rem;font-weight:600;color:#FDCB6E;">
+        🔥 47 Warm Leads This Week
+      </div>
+    </div>
+
+    <!-- Big numbers -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:700px;margin:0 auto;">
+      <div>
+        <div style="font-size:2.2rem;font-weight:900;color:#E2E2EA;" class="grad-text">7.6K</div>
+        <div style="font-size:0.68rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-top:0.2rem;">Total Followers</div>
+      </div>
+      <div>
+        <div style="font-size:2.2rem;font-weight:900;" class="grad-text">4.2%</div>
+        <div style="font-size:0.68rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-top:0.2rem;">Engagement</div>
+      </div>
+      <div>
+        <div style="font-size:2.2rem;font-weight:900;" class="grad-text">4</div>
+        <div style="font-size:0.68rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-top:0.2rem;">Platforms</div>
+      </div>
+      <div>
+        <div style="font-size:2.2rem;font-weight:900;" class="grad-text">#1</div>
+        <div style="font-size:0.68rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-top:0.2rem;">vs Competitors</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div style="position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);animation:bounce 2s ease infinite;">
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,rgba(108,92,231,0.6),transparent);margin:0 auto;"></div>
+  </div>
+</section>
+
+<!-- PLATFORM OVERVIEW -->
+<section id="platforms" style="padding:6rem 1.5rem;max-width:1200px;margin:0 auto;">
+  <div class="fade-up" style="text-align:center;margin-bottom:3.5rem;">
+    <div class="section-eyebrow" style="margin-bottom:0.8rem;">Platform Performance</div>
+    <h2 style="font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;color:#E2E2EA;">
+      Growth Across Every Channel
+    </h2>
+    <p style="color:#5A5A6A;margin-top:0.8rem;font-size:0.95rem;">Quarter-over-quarter results across all 4 platforms</p>
+  </div>
+
+  <div class="platforms-grid fade-up" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;">
+    <!-- YouTube -->
+    <div class="card-base platform-card yt-card" style="padding:1.8rem;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:1rem;">▶️</div>
+      <div style="font-size:0.65rem;font-weight:700;color:#FF4444;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.8rem;">YouTube</div>
+      <div style="font-size:2.4rem;font-weight:900;color:#E2E2EA;letter-spacing:-1px;">890</div>
+      <div style="font-size:0.72rem;color:#5A5A6A;margin-bottom:0.8rem;">subscribers</div>
+      <div style="background:rgba(255,68,68,0.1);border-radius:20px;padding:0.3rem 0.8rem;display:inline-block;">
+        <span style="color:#FF4444;font-size:0.78rem;font-weight:700;">↑ +18% QoQ</span>
+      </div>
+      <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+        <div style="font-size:0.65rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">Avg Views/Video</div>
+        <div style="font-size:1.2rem;font-weight:700;color:#E2E2EA;">1,800</div>
+      </div>
+    </div>
+
+    <!-- Instagram -->
+    <div class="card-base platform-card ig-card" style="padding:1.8rem;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:1rem;">📸</div>
+      <div style="font-size:0.65rem;font-weight:700;color:#E4405F;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.8rem;">Instagram</div>
+      <div style="font-size:2.4rem;font-weight:900;color:#E2E2EA;letter-spacing:-1px;">1.2K</div>
+      <div style="font-size:0.72rem;color:#5A5A6A;margin-bottom:0.8rem;">followers</div>
+      <div style="background:rgba(228,64,95,0.1);border-radius:20px;padding:0.3rem 0.8rem;display:inline-block;">
+        <span style="color:#E4405F;font-size:0.78rem;font-weight:700;">↑ +31% QoQ</span>
+      </div>
+      <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+        <div style="font-size:0.65rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">Best content type</div>
+        <div style="font-size:1rem;font-weight:600;color:#E2E2EA;">Reels</div>
+      </div>
+    </div>
+
+    <!-- LinkedIn -->
+    <div class="card-base platform-card li-card" style="padding:1.8rem;text-align:center;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;right:0;background:linear-gradient(135deg,rgba(108,92,231,0.2),transparent);width:80px;height:80px;border-radius:0 16px 0 80px;"></div>
+      <div style="font-size:2.5rem;margin-bottom:1rem;">💼</div>
+      <div style="font-size:0.65rem;font-weight:700;color:#0A66C2;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.8rem;">LinkedIn</div>
+      <div style="font-size:2.4rem;font-weight:900;color:#E2E2EA;letter-spacing:-1px;">3.4K</div>
+      <div style="font-size:0.72rem;color:#5A5A6A;margin-bottom:0.8rem;">followers</div>
+      <div style="background:rgba(10,102,194,0.15);border-radius:20px;padding:0.3rem 0.8rem;display:inline-block;">
+        <span style="color:#4A9EE8;font-size:0.78rem;font-weight:700;">↑ +19% QoQ</span>
+      </div>
+      <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+        <div style="font-size:0.65rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">Engagement Rate</div>
+        <div style="font-size:1.2rem;font-weight:700;" class="grad-text">4.2% 🏆</div>
+      </div>
+    </div>
+
+    <!-- Twitter -->
+    <div class="card-base platform-card tw-card" style="padding:1.8rem;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:1rem;">𝕏</div>
+      <div style="font-size:0.65rem;font-weight:700;color:#1DA1F2;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.8rem;">Twitter / X</div>
+      <div style="font-size:2.4rem;font-weight:900;color:#E2E2EA;letter-spacing:-1px;">2.1K</div>
+      <div style="font-size:0.72rem;color:#5A5A6A;margin-bottom:0.8rem;">followers</div>
+      <div style="background:rgba(29,161,242,0.1);border-radius:20px;padding:0.3rem 0.8rem;display:inline-block;">
+        <span style="color:#1DA1F2;font-size:0.78rem;font-weight:700;">↑ +12% QoQ</span>
+      </div>
+      <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+        <div style="font-size:0.65rem;color:#5A5A6A;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">Avg Impressions</div>
+        <div style="font-size:1.2rem;font-weight:700;color:#E2E2EA;">3,200</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- THE WIN -->
+<section id="win" style="padding:6rem 1.5rem;background:rgba(108,92,231,0.03);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div style="max-width:900px;margin:0 auto;">
+    <div class="fade-up" style="text-align:center;margin-bottom:3.5rem;">
+      <div class="section-eyebrow" style="margin-bottom:0.8rem;">Competitive Analysis</div>
+      <h2 style="font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;color:#E2E2EA;">
+        JustPaid <span class="grad-text">Outperforms Giants</span>
+      </h2>
+      <p style="color:#5A5A6A;margin-top:1rem;font-size:0.95rem;max-width:520px;margin-left:auto;margin-right:auto;">
+        LinkedIn engagement rate vs competitors with 50–100× larger teams and budgets
+      </p>
+    </div>
+
+    <!-- Bar chart -->
+    <div class="fade-up" id="bar-chart" style="display:flex;flex-direction:column;gap:1.2rem;">
+      <!-- JustPaid -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+          <span style="font-size:0.85rem;font-weight:700;" class="grad-text">JustPaid ★</span>
+          <span style="font-size:0.85rem;font-weight:800;color:#E2E2EA;">4.2%</span>
+        </div>
+        <div style="height:40px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;position:relative;">
+          <div class="bar-fill" style="--target-width:100%;height:100%;background:linear-gradient(90deg,#6C5CE7,#A29BFE,#00CEC9);border-radius:8px;display:flex;align-items:center;padding-left:1rem;">
+            <span style="font-size:0.72rem;font-weight:700;color:white;opacity:0.9;">3–4× industry average</span>
+          </div>
+        </div>
+      </div>
+      <!-- Gusto -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+          <span style="font-size:0.85rem;color:#8A8A9A;">Gusto</span>
+          <span style="font-size:0.85rem;color:#5A5A6A;">1.4%</span>
+        </div>
+        <div style="height:32px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;">
+          <div class="bar-fill" style="--target-width:33%;height:100%;background:rgba(253,203,110,0.3);border-radius:8px;"></div>
+        </div>
+      </div>
+      <!-- Deel -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+          <span style="font-size:0.85rem;color:#8A8A9A;">Deel</span>
+          <span style="font-size:0.85rem;color:#5A5A6A;">1.1%</span>
+        </div>
+        <div style="height:32px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;">
+          <div class="bar-fill" style="--target-width:26%;height:100%;background:rgba(0,184,148,0.25);border-radius:8px;"></div>
+        </div>
+      </div>
+      <!-- Rippling -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+          <span style="font-size:0.85rem;color:#8A8A9A;">Rippling</span>
+          <span style="font-size:0.85rem;color:#5A5A6A;">0.9%</span>
+        </div>
+        <div style="height:32px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;">
+          <div class="bar-fill" style="--target-width:21%;height:100%;background:rgba(225,112,85,0.25);border-radius:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Big callout -->
+    <div class="fade-up glass" style="margin-top:3rem;padding:2.5rem;text-align:center;background:linear-gradient(135deg,rgba(108,92,231,0.08),rgba(0,206,201,0.04));border-color:rgba(108,92,231,0.2);">
+      <div style="font-size:clamp(2rem,5vw,3.5rem);font-weight:900;letter-spacing:-2px;" class="grad-text">3–4×</div>
+      <div style="font-size:1.1rem;color:#E2E2EA;font-weight:600;margin-top:0.5rem;">higher engagement than every competitor</div>
+      <div style="font-size:0.88rem;color:#5A5A6A;margin-top:0.5rem;">with 50× smaller team · 100× smaller budget</div>
+    </div>
+  </div>
+</section>
+
+<!-- LEAD INTELLIGENCE -->
+<section id="leads" style="padding:6rem 1.5rem;max-width:1100px;margin:0 auto;">
+  <div class="fade-up" style="text-align:center;margin-bottom:1rem;">
+    <div class="section-eyebrow" style="margin-bottom:0.8rem;">Demand Intelligence</div>
+    <h2 style="font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;color:#E2E2EA;">
+      🎯 Warm Leads Found This Week
+    </h2>
+    <p style="color:#5A5A6A;margin-top:0.8rem;font-size:0.95rem;">
+      People actively asking about JustPaid's exact problem on Reddit & HN
+    </p>
+  </div>
+
+  <!-- Stat pill -->
+  <div class="fade-up" style="text-align:center;margin-bottom:3rem;">
+    <div style="display:inline-flex;align-items:center;gap:1.5rem;background:rgba(108,92,231,0.08);border:1px solid rgba(108,92,231,0.2);border-radius:30px;padding:0.8rem 2rem;">
+      <div><span style="font-size:1.6rem;font-weight:900;" class="grad-text">47</span><span style="font-size:0.72rem;color:#5A5A6A;display:block;text-transform:uppercase;letter-spacing:1px;">Total Signals</span></div>
+      <div style="width:1px;height:30px;background:var(--border);"></div>
+      <div><span style="font-size:1.6rem;font-weight:900;color:#FF4500;">28</span><span style="font-size:0.72rem;color:#5A5A6A;display:block;text-transform:uppercase;letter-spacing:1px;">From Reddit</span></div>
+      <div style="width:1px;height:30px;background:var(--border);"></div>
+      <div><span style="font-size:1.6rem;font-weight:900;color:#FF6600;">19</span><span style="font-size:0.72rem;color:#5A5A6A;display:block;text-transform:uppercase;letter-spacing:1px;">From HN</span></div>
+    </div>
+  </div>
+
+  <!-- Signal cards -->
+  <div class="fade-up" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;">
+    <!-- Signal 1 -->
+    <div class="card-base signal-card signal-payroll" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,69,0,0.15);color:#FF4500;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Reddit r/startups</span>
+        <span style="background:rgba(0,184,148,0.12);color:#00B894;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Payroll</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">"Paying contractors in 5 different countries — current setup is a nightmare, any recommendations?"</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 347 upvotes</span>
+        <span>💬 89 comments</span>
+        <span>2 hours ago</span>
+      </div>
+    </div>
+
+    <!-- Signal 2 -->
+    <div class="card-base signal-card signal-contractor" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,102,0,0.15);color:#FF6600;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Hacker News</span>
+        <span style="background:rgba(253,203,110,0.12);color:#FDCB6E;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Contractor</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">Ask HN: "What's the best way to handle 1099 payments for a 10-person remote contractor team?"</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 218 points</span>
+        <span>💬 54 comments</span>
+        <span>5 hours ago</span>
+      </div>
+    </div>
+
+    <!-- Signal 3 -->
+    <div class="card-base signal-card signal-invoice" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,69,0,0.15);color:#FF4500;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Reddit r/Entrepreneur</span>
+        <span style="background:rgba(162,155,254,0.12);color:#A29BFE;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Invoice</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">"Invoice payment delays are killing my cash flow — spent 3 hours chasing payments last week"</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 156 upvotes</span>
+        <span>💬 42 comments</span>
+        <span>8 hours ago</span>
+      </div>
+    </div>
+
+    <!-- Signal 4 -->
+    <div class="card-base signal-card signal-payroll" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,69,0,0.15);color:#FF4500;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Reddit r/smallbusiness</span>
+        <span style="background:rgba(0,184,148,0.12);color:#00B894;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Payroll</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">"Just got hit with multi-state compliance penalties. Nobody told me hiring remotely was this complex."</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 94 upvotes</span>
+        <span>💬 61 comments</span>
+        <span>1 day ago</span>
+      </div>
+    </div>
+
+    <!-- Signal 5 -->
+    <div class="card-base signal-card signal-contractor" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,102,0,0.15);color:#FF6600;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Hacker News</span>
+        <span style="background:rgba(253,203,110,0.12);color:#FDCB6E;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Contractor</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">"International contractor payments: we're losing 4–8% to FX fees every month. What are people using?"</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 87 points</span>
+        <span>💬 33 comments</span>
+        <span>1 day ago</span>
+      </div>
+    </div>
+
+    <!-- Signal 6 -->
+    <div class="card-base signal-card signal-invoice" style="padding:1.3rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
+        <span style="background:rgba(255,69,0,0.15);color:#FF4500;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0.2rem 0.6rem;border-radius:6px;">Reddit r/freelance</span>
+        <span style="background:rgba(162,155,254,0.12);color:#A29BFE;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:6px;">Invoice</span>
+      </div>
+      <div style="font-size:0.88rem;font-weight:600;color:#E2E2EA;line-height:1.4;margin-bottom:0.7rem;">"Client just asked for net-60 terms. I need automated invoicing that handles follow-ups so I don't have to."</div>
+      <div style="display:flex;gap:1rem;font-size:0.7rem;color:#5A5A6A;">
+        <span>↑ 71 upvotes</span>
+        <span>💬 28 comments</span>
+        <span>2 days ago</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPETITIVE GAPS -->
+<section style="padding:6rem 1.5rem;background:rgba(0,0,0,0.3);border-top:1px solid var(--border);">
+  <div style="max-width:900px;margin:0 auto;">
+    <div class="fade-up" style="text-align:center;margin-bottom:3.5rem;">
+      <div class="section-eyebrow" style="margin-bottom:0.8rem;">Content Strategy</div>
+      <h2 style="font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;color:#E2E2EA;">
+        4 Gaps Where We <span class="grad-text">Win</span>
+      </h2>
+      <p style="color:#5A5A6A;margin-top:0.8rem;font-size:0.95rem;">Content opportunities competitors are ignoring</p>
+    </div>
+
+    <div class="gaps-grid fade-up" style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;">
+      <!-- Gap 1 -->
+      <div class="card-base gap-card" style="padding:1.8rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">🤖</div>
+        <div style="font-size:1rem;font-weight:700;color:#E2E2EA;margin-bottom:0.5rem;">AI payments content</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;line-height:1.6;margin-bottom:1.2rem;">Deel, Gusto, Rippling post compliance guides. Nobody owns the "AI-powered payments" narrative. JustPaid has 6 months head start.</div>
+        <span style="background:rgba(108,92,231,0.15);color:#A29BFE;font-size:0.68rem;font-weight:700;padding:0.3rem 0.8rem;border-radius:20px;">1 post/week → own the category</span>
+      </div>
+
+      <!-- Gap 2 -->
+      <div class="card-base gap-card" style="padding:1.8rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">🎬</div>
+        <div style="font-size:1rem;font-weight:700;color:#E2E2EA;margin-bottom:0.5rem;">YouTube SEO goldmine</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;line-height:1.6;margin-bottom:1.2rem;">"How to pay contractors in [country]" gets 12K+ monthly searches. Gusto has 1 video from 2021. First mover takes all.</div>
+        <span style="background:rgba(0,184,148,0.12);color:#00B894;font-size:0.68rem;font-weight:700;padding:0.3rem 0.8rem;border-radius:20px;">4 videos → own the keyword</span>
+      </div>
+
+      <!-- Gap 3 -->
+      <div class="card-base gap-card" style="padding:1.8rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">👤</div>
+        <div style="font-size:1rem;font-weight:700;color:#E2E2EA;margin-bottom:0.5rem;">Founder voice content</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;line-height:1.6;margin-bottom:1.2rem;">Personal first-person LinkedIn posts get 2.8× more engagement than corporate voice. Competitors can't do this — we can.</div>
+        <span style="background:rgba(253,203,110,0.12);color:#FDCB6E;font-size:0.68rem;font-weight:700;padding:0.3rem 0.8rem;border-radius:20px;">2.8× engagement multiplier</span>
+      </div>
+
+      <!-- Gap 4 -->
+      <div class="card-base gap-card" style="padding:1.8rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">⚔️</div>
+        <div style="font-size:1rem;font-weight:700;color:#E2E2EA;margin-bottom:0.5rem;">Comparison content</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;line-height:1.6;margin-bottom:1.2rem;">Nobody makes "JustPaid vs Deel vs Rippling" content — but 8K people search this monthly. First mover captures all intent.</div>
+        <span style="background:rgba(0,206,201,0.1);color:#00CEC9;font-size:0.68rem;font-weight:700;padding:0.3rem 0.8rem;border-radius:20px;">8K/mo search volume unclaimed</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Q2 CONTENT CALENDAR -->
+<section id="calendar" style="padding:6rem 1.5rem;max-width:1100px;margin:0 auto;">
+  <div class="fade-up" style="text-align:center;margin-bottom:3.5rem;">
+    <div class="section-eyebrow" style="margin-bottom:0.8rem;">Q2 2025 Plan</div>
+    <h2 style="font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;color:#E2E2EA;">
+      12-Week <span class="grad-text">Content Strategy</span>
+    </h2>
+    <p style="color:#5A5A6A;margin-top:0.8rem;font-size:0.95rem;">Built from 6 months of JustPaid performance data</p>
+  </div>
+
+  <div class="fade-up" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;">
+    <!-- April -->
+    <div class="card-base" style="padding:1.8rem;">
+      <div style="font-size:0.65rem;font-weight:700;color:#6C5CE7;text-transform:uppercase;letter-spacing:2px;margin-bottom:0.4rem;">April</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#E2E2EA;margin-bottom:1.2rem;">Foundation</div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <span class="cal-pill" style="background:rgba(108,92,231,0.12);color:#A29BFE;">🤖 AI launch content</span>
+        <span class="cal-pill" style="background:rgba(255,68,68,0.1);color:#FF6B6B;">🎬 Contractor pay guide</span>
+        <span class="cal-pill" style="background:rgba(0,184,148,0.1);color:#00B894;">👤 Customer spotlight</span>
+      </div>
+    </div>
+
+    <!-- May -->
+    <div class="card-base" style="padding:1.8rem;border-color:rgba(108,92,231,0.3);">
+      <div style="font-size:0.65rem;font-weight:700;color:#A29BFE;text-transform:uppercase;letter-spacing:2px;margin-bottom:0.4rem;">May</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#E2E2EA;margin-bottom:1.2rem;">Authority</div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <span class="cal-pill" style="background:rgba(0,206,201,0.1);color:#00CEC9;">📊 Thought leadership</span>
+        <span class="cal-pill" style="background:rgba(253,203,110,0.1);color:#FDCB6E;">🎯 Reddit engagement</span>
+        <span class="cal-pill" style="background:rgba(108,92,231,0.12);color:#A29BFE;">📹 Demo series</span>
+      </div>
+    </div>
+
+    <!-- June -->
+    <div class="card-base" style="padding:1.8rem;">
+      <div style="font-size:0.65rem;font-weight:700;color:#00CEC9;text-transform:uppercase;letter-spacing:2px;margin-bottom:0.4rem;">June</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#E2E2EA;margin-bottom:1.2rem;">Growth</div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <span class="cal-pill" style="background:rgba(0,184,148,0.1);color:#00B894;">🤝 Founder collabs</span>
+        <span class="cal-pill" style="background:rgba(255,69,0,0.1);color:#FF6B6B;">⚔️ Comparison posts</span>
+        <span class="cal-pill" style="background:rgba(162,155,254,0.1);color:#A29BFE;">📈 Transparency report</span>
+      </div>
+    </div>
+
+    <!-- July -->
+    <div class="card-base" style="padding:1.8rem;">
+      <div style="font-size:0.65rem;font-weight:700;color:#00B894;text-transform:uppercase;letter-spacing:2px;margin-bottom:0.4rem;">July</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#E2E2EA;margin-bottom:1.2rem;">Scale</div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <span class="cal-pill" style="background:rgba(253,203,110,0.1);color:#FDCB6E;">🏆 Q2 results post</span>
+        <span class="cal-pill" style="background:rgba(108,92,231,0.12);color:#A29BFE;">🎓 SEO tutorial series</span>
+        <span class="cal-pill" style="background:rgba(0,206,201,0.1);color:#00CEC9;">📣 Community push</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stop/double down -->
+  <div class="fade-up" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-top:3rem;">
+    <div style="background:rgba(225,112,85,0.04);border:1px solid rgba(225,112,85,0.15);border-radius:16px;padding:1.8rem;">
+      <div style="font-size:0.75rem;font-weight:700;color:#E17055;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">🛑 Stop Doing</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;">
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(225,112,85,0.3);">"JustPaid is excited to announce…" → 0.3% engagement</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(225,112,85,0.3);">Promotional-first content → 70% less reach</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(225,112,85,0.3);">Posts without a hook → buried by algorithm</div>
+      </div>
+    </div>
+    <div style="background:rgba(0,184,148,0.04);border:1px solid rgba(0,184,148,0.15);border-radius:16px;padding:1.8rem;">
+      <div style="font-size:0.75rem;font-weight:700;color:#00B894;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">🚀 Double Down</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;">
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(0,184,148,0.3);">Tutorial & how-to → 3.5× more views</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(0,184,148,0.3);">First-person LinkedIn voice → 2.8× engagement</div>
+        <div style="font-size:0.82rem;color:#8A8A9A;padding-left:0.8rem;border-left:2px solid rgba(0,184,148,0.3);">YouTube 4+ videos/month → algorithm trust</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="padding:3rem 1.5rem;border-top:1px solid var(--border);text-align:center;">
+  <div style="font-size:1.1rem;font-weight:800;margin-bottom:0.5rem;">
+    <span class="grad-text">Built with live data · Updated daily</span>
+  </div>
+  <div style="font-size:0.8rem;color:#5A5A6A;">
+    JustPaid Social Intelligence · <a href="https://justpaid.io" style="color:#6C5CE7;text-decoration:none;">justpaid.io</a>
+  </div>
+  <div style="margin-top:1.5rem;font-size:0.7rem;color:#3A3A4A;">
+    YouTube · Instagram · LinkedIn · X — 6 months · Q4 2024 – Q1 2025
+  </div>
+</footer>
+
+<script>
+// Stars
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 80; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() * 2.5 + 0.5;
+  s.style.cssText = `
+    left:${Math.random()*100}%;top:${Math.random()*100}%;
+    width:${size}px;height:${size}px;
+    --d:${2+Math.random()*4}s;--op:${0.3+Math.random()*0.5};
+    animation-delay:${Math.random()*5}s;
+  `;
+  starsEl.appendChild(s);
+}
+
+// Fade-up on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Bar chart animation
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.bar-fill').forEach(bar => {
+        bar.classList.add('animate');
+      });
+      barObserver.disconnect();
+    }
+  });
+}, { threshold: 0.3 });
+const barChart = document.getElementById('bar-chart');
+if (barChart) barObserver.observe(barChart);
+
+// Pulse keyframe
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
+  @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)} }
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
