@@ -219,6 +219,63 @@ def _qoq_layout(**kwargs) -> dict:
     return layout
 
 
+def qoq_growth_chart(curr_stats: dict, prev_stats: dict,
+                     curr_label: str, prev_label: str,
+                     platform_color: str = None) -> go.Figure:
+    """Dual-axis grouped bar: follower count (left) + engagement rate % (right)."""
+    color = platform_color or BRAND["primary"]
+    muted = BRAND["text_muted"]
+    quarters = [prev_label, curr_label]
+
+    fig = go.Figure()
+
+    # Follower bars (left y-axis)
+    fig.add_trace(go.Bar(
+        name="Followers",
+        x=quarters,
+        y=[prev_stats.get("total_followers", prev_stats.get("total_views", 0)),
+           curr_stats.get("total_followers", curr_stats.get("total_views", 0))],
+        marker_color=[muted, color],
+        text=[f"{prev_stats.get('total_followers', prev_stats.get('total_views', 0)):,}",
+              f"{curr_stats.get('total_followers', curr_stats.get('total_views', 0)):,}"],
+        textposition="outside",
+        yaxis="y",
+        offsetgroup=0,
+        width=0.35,
+    ))
+
+    # Engagement rate line (right y-axis)
+    fig.add_trace(go.Scatter(
+        name="Engagement Rate",
+        x=quarters,
+        y=[prev_stats.get("engagement_rate", 0), curr_stats.get("engagement_rate", 0)],
+        mode="lines+markers+text",
+        line=dict(color=BRAND["accent"], width=3),
+        marker=dict(size=10, color=BRAND["accent"]),
+        text=[f"{prev_stats.get('engagement_rate', 0):.2f}%",
+              f"{curr_stats.get('engagement_rate', 0):.2f}%"],
+        textposition="top center",
+        textfont=dict(color=BRAND["accent"], size=12),
+        yaxis="y2",
+    ))
+
+    layout = _qoq_layout(
+        title="Follower Growth & Engagement Rate",
+        yaxis_title="Total Views",
+        showlegend=True,
+        barmode="group",
+    )
+    layout["yaxis2"] = dict(
+        title=dict(text="Engagement Rate (%)", font=dict(color=BRAND["accent"])),
+        overlaying="y",
+        side="right",
+        showgrid=False,
+        tickfont=dict(color=BRAND["accent"]),
+    )
+    fig.update_layout(**layout)
+    return fig
+
+
 def qoq_comparison_bars(curr_stats: dict, prev_stats: dict,
                         curr_label: str, prev_label: str) -> go.Figure:
     """Grouped bar chart comparing two quarters across key metrics."""

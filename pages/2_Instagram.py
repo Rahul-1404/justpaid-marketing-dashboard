@@ -1,11 +1,19 @@
 import streamlit as st
 import pandas as pd
 from config.settings import BRAND, PLATFORM_COLORS
-from utils.metrics import format_number
+from utils.metrics import (
+    format_number,
+    current_and_previous_quarter, quarter_boundaries, quarter_label,
+    compute_quarter_stats,
+)
 from utils.charts import (
     follower_growth_chart,
     content_type_breakdown,
     posting_frequency_chart,
+    qoq_growth_chart,
+    qoq_comparison_bars,
+    qoq_avg_performance_bars,
+    qoq_content_mix_comparison,
 )
 
 st.set_page_config(
@@ -127,3 +135,155 @@ if not posts_df.empty:
     )
 else:
     st.info("No post data available yet.")
+
+# ============ Quarter-over-Quarter Comparison ============
+
+
+@st.cache_data(ttl=3600)
+def load_ig_qoq():
+    try:
+        from storage.bigquery_client import get_posts_by_date_range
+        (cy, cq), (py, pq) = current_and_previous_quarter()
+        cs, ce = quarter_boundaries(cy, cq)
+        ps, pe = quarter_boundaries(py, pq)
+        curr_df = get_posts_by_date_range(cs, ce, platform="Instagram")
+        prev_df = get_posts_by_date_range(ps, pe, platform="Instagram")
+        return curr_df, prev_df, quarter_label(cy, cq), quarter_label(py, pq)
+    except Exception:
+        return pd.DataFrame(), pd.DataFrame(), "", ""
+
+
+qoq_curr, qoq_prev, curr_lbl, prev_lbl = load_ig_qoq()
+has_both = not qoq_curr.empty and not qoq_prev.empty
+has_any = not qoq_curr.empty or not qoq_prev.empty
+
+if has_any:
+    if has_both:
+        section_title = f"Quarter-over-Quarter: {curr_lbl} vs {prev_lbl}"
+    else:
+        active_lbl = curr_lbl if not qoq_curr.empty else prev_lbl
+        section_title = f"{active_lbl} Quarter Summary"
+
+    st.markdown(f"""
+    <div style="padding: 1.5rem 0 0.5rem;">
+        <span style="font-size: 1.2rem; font-weight: 800; color: {ig_color};">{section_title}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    curr_stats = compute_quarter_stats(qoq_curr)
+    prev_stats = compute_quarter_stats(qoq_prev)
+
+    qoq_metrics = [
+        ("Posts Published", "total_posts", False),
+        ("Total Views", "total_views", False),
+        ("Total Likes", "total_likes", False),
+        ("Engagement Rate", "engagement_rate", True),
+    ]
+
+    qoq_cols = st.columns(4)
+    for i, (label, key, is_pct) in enumerate(qoq_metrics):
+        with qoq_cols[i]:
+            curr_val = curr_stats[key]
+            prev_val = prev_stats[key]
+            if is_pct:
+                curr_display = f"{curr_val:.2f}%"
+                prev_display = f"{prev_val:.2f}%"
+                diff = curr_val - prev_val
+                diff_display = f"{diff:+.2f}%"
+            else:
+                curr_display = format_number(curr_val)
+                prev_display = format_number(prev_val)
+                diff = curr_val - prev_val
+                diff_display = f"{(diff / prev_val * 100):+.0f}%" if prev_val > 0 else "New"
+
+            if has_both:
+                if diff > 0:
+                    delta_color = BRAND["success"]
+                    arrow = "^"
+                elif diff < 0:
+                    delta_color = BRAND["danger"]
+                    arrow = "v"
+                else:
+                    delta_color = BRAND["text_muted"]
+                    arrow = ""
+
+                st.markdown(f"""
+                <div style="background: #1A1D29; border: 1px solid rgba(255,255,255,0.06);
+                            border-radius: 14px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: #8A8A9A; text-transform: uppercase;
+                                letter-spacing: 1.2px; margin-bottom: 0.3rem;">{label}</div>
+                    <div style="font-size: 1.3rem; font-weight: 800; color: #E2E2EA;">{curr_display}</div>
+                    <div style="font-size: 0.7rem; font-weight: 600; color: {delta_color};">
+                        {arrow} {diff_display} vs {prev_lbl}
+                    </div>
+                    <div style="font-size: 0.6rem; color: #5A5A6A; margin-top: 0.3rem;">
+                        {prev_lbl}: {prev_display}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                solo_val = curr_display if not qoq_curr.empty else prev_display
+                st.markdown(f"""
+                <div style="background: #1A1D29; border: 1px solid rgba(255,255,255,0.06);
+                            border-radius: 14px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: #8A8A9A; text-transform: uppercase;
+                                letter-spacing: 1.2px; margin-bottom: 0.3rem;">{label}</div>
+                    <div style="font-size: 1.3rem; font-weight: 800; color: #E2E2EA;">{solo_val}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    if has_both:
+        fig = qoq_growth_chart(curr_stats, prev_stats, curr_lbl, prev_lbl,
+                               platform_color=ig_color)
+        st.plotly_chart(fig, use_container_width=True)
+
+        col_left, col_right = st.columns(2)
+        with col_left:
+            fig = qoq_comparison_bars(curr_stats, prev_stats, curr_lbl, prev_lbl)
+            st.plotly_chart(fig, use_container_width=True)
+        with col_right:
+            fig = qoq_avg_performance_bars(curr_stats, prev_stats, curr_lbl, prev_lbl)
+            st.plotly_chart(fig, use_container_width=True)
+
+        fig = qoq_content_mix_comparison(qoq_curr, qoq_prev, curr_lbl, prev_lbl)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("#### Top Performers by Quarter")
+        tcol_left, tcol_right = st.columns(2)
+        with tcol_left:
+            st.markdown(f"**{curr_lbl}**")
+            if not qoq_curr.empty:
+                top_curr = qoq_curr.sort_values("likes", ascending=False).head(5).reset_index(drop=True)
+                top_curr.index = top_curr.index + 1
+                cols_show = [c for c in ["title", "post_type", "likes", "comments"] if c in top_curr.columns]
+                st.dataframe(top_curr[cols_show].rename(columns={
+                    "title": "Caption", "post_type": "Type", "likes": "Likes", "comments": "Comments",
+                }), use_container_width=True)
+        with tcol_right:
+            st.markdown(f"**{prev_lbl}**")
+            if not qoq_prev.empty:
+                top_prev = qoq_prev.sort_values("likes", ascending=False).head(5).reset_index(drop=True)
+                top_prev.index = top_prev.index + 1
+                cols_show = [c for c in ["title", "post_type", "likes", "comments"] if c in top_prev.columns]
+                st.dataframe(top_prev[cols_show].rename(columns={
+                    "title": "Caption", "post_type": "Type", "likes": "Likes", "comments": "Comments",
+                }), use_container_width=True)
+    else:
+        active_df = qoq_curr if not qoq_curr.empty else qoq_prev
+        active_label = curr_lbl if not qoq_curr.empty else prev_lbl
+        missing_label = prev_lbl if not qoq_curr.empty else curr_lbl
+
+        fig = content_type_breakdown(active_df, platform="Instagram")
+        st.plotly_chart(fig, use_container_width=True, key="ig_qoq_content_breakdown")
+
+        st.markdown(f"#### Top Performers — {active_label}")
+        top_df = active_df.sort_values("likes", ascending=False).head(5).reset_index(drop=True)
+        top_df.index = top_df.index + 1
+        cols_show = [c for c in ["title", "post_type", "likes", "comments"] if c in top_df.columns]
+        st.dataframe(top_df[cols_show].rename(columns={
+            "title": "Caption", "post_type": "Type", "likes": "Likes", "comments": "Comments",
+        }), use_container_width=True)
+
+        st.info(f"No data available for {missing_label}. QoQ comparison charts will appear once both quarters have data.")
