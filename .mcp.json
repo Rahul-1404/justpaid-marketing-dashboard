@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "linkedin-analytics": {
+      "command": "/Users/shrinija/Projects/justpaid-social-dashboard/.venv/bin/python",
+      "args": [
+        "/Users/shrinija/Projects/justpaid-social-dashboard/mcp_servers/linkedin/server.py"
+      ],
+      "env": {
+        "LINKEDIN_ORG_ID": "89623165",
+        "GCP_PROJECT_ID": "bionic-store-488922-d6",
+        "BIGQUERY_DATASET": "justpaid_social"
+      }
+    }
+  }
+}
