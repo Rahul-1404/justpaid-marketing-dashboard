@@ -113,6 +113,23 @@ def get_latest_metrics_per_platform() -> pd.DataFrame:
     return client.query(query).to_dataframe()
 
 
+def get_posts_by_date_range(
+    start_date: str, end_date: str, platform: str = None
+) -> pd.DataFrame:
+    """Fetch posts published within a date range."""
+    client = _get_client()
+    query = f"""
+        SELECT DISTINCT post_id, platform, title, post_type, url,
+               views, likes, comments, shares, published_at, collected_at
+        FROM `{_table_id('posts')}`
+        WHERE published_at >= TIMESTAMP('{start_date}')
+          AND published_at < TIMESTAMP('{end_date}T23:59:59')
+        {"AND platform = '" + platform + "'" if platform else ""}
+        ORDER BY views DESC
+    """
+    return client.query(query).to_dataframe()
+
+
 def get_top_posts_all_platforms(limit: int = 5) -> pd.DataFrame:
     """Get top posts across all platforms by views."""
     client = _get_client()

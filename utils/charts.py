@@ -206,3 +206,110 @@ def posting_frequency_chart(df: pd.DataFrame, date_col: str = "published_at") ->
         yaxis_title="Posts",
     )
     return fig
+
+
+def _qoq_layout(**kwargs) -> dict:
+    """Base layout for QoQ charts with horizontal legend on top."""
+    layout = _base_layout()
+    layout["legend"] = dict(
+        orientation="h", yanchor="bottom", y=1.02,
+        xanchor="center", x=0.5, bgcolor="rgba(0,0,0,0)", font=dict(size=11),
+    )
+    layout.update(kwargs)
+    return layout
+
+
+def qoq_comparison_bars(curr_stats: dict, prev_stats: dict,
+                        curr_label: str, prev_label: str) -> go.Figure:
+    """Grouped bar chart comparing two quarters across key metrics."""
+    metrics = ["total_posts", "total_views", "total_likes", "total_comments"]
+    labels = ["Posts", "Views", "Likes", "Comments"]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name=prev_label,
+        x=labels,
+        y=[prev_stats.get(m, 0) for m in metrics],
+        marker_color=BRAND["text_muted"],
+        text=[f"{prev_stats.get(m, 0):,}" for m in metrics],
+        textposition="outside",
+    ))
+    fig.add_trace(go.Bar(
+        name=curr_label,
+        x=labels,
+        y=[curr_stats.get(m, 0) for m in metrics],
+        marker_color=BRAND["primary"],
+        text=[f"{curr_stats.get(m, 0):,}" for m in metrics],
+        textposition="outside",
+    ))
+
+    fig.update_layout(**_qoq_layout(
+        barmode="group",
+        title=f"{curr_label} vs {prev_label}",
+        showlegend=True,
+    ))
+    return fig
+
+
+def qoq_avg_performance_bars(curr_stats: dict, prev_stats: dict,
+                              curr_label: str, prev_label: str) -> go.Figure:
+    """Grouped bar chart for average per-post metrics."""
+    metrics = ["avg_views", "avg_likes"]
+    labels = ["Avg Views/Post", "Avg Likes/Post"]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name=prev_label,
+        x=labels,
+        y=[prev_stats.get(m, 0) for m in metrics],
+        marker_color=BRAND["text_muted"],
+        text=[f"{prev_stats.get(m, 0):,}" for m in metrics],
+        textposition="outside",
+    ))
+    fig.add_trace(go.Bar(
+        name=curr_label,
+        x=labels,
+        y=[curr_stats.get(m, 0) for m in metrics],
+        marker_color=BRAND["accent"],
+        text=[f"{curr_stats.get(m, 0):,}" for m in metrics],
+        textposition="outside",
+    ))
+
+    fig.update_layout(**_qoq_layout(
+        barmode="group",
+        title="Average Performance Per Post",
+        showlegend=True,
+    ))
+    return fig
+
+
+def qoq_content_mix_comparison(curr_df: pd.DataFrame, prev_df: pd.DataFrame,
+                                curr_label: str, prev_label: str) -> go.Figure:
+    """Side-by-side content type comparison between quarters."""
+    curr_counts = curr_df["post_type"].value_counts() if not curr_df.empty else pd.Series(dtype=int)
+    prev_counts = prev_df["post_type"].value_counts() if not prev_df.empty else pd.Series(dtype=int)
+
+    all_types = sorted(set(list(curr_counts.index) + list(prev_counts.index)))
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name=prev_label,
+        x=all_types,
+        y=[prev_counts.get(t, 0) for t in all_types],
+        marker_color=BRAND["text_muted"],
+    ))
+    fig.add_trace(go.Bar(
+        name=curr_label,
+        x=all_types,
+        y=[curr_counts.get(t, 0) for t in all_types],
+        marker_color=BRAND["primary"],
+    ))
+
+    fig.update_layout(**_qoq_layout(
+        barmode="group",
+        title="Content Mix Comparison",
+        xaxis_title="Content Type",
+        yaxis_title="Count",
+        showlegend=True,
+    ))
+    return fig

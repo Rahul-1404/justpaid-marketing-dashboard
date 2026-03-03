@@ -1,11 +1,17 @@
 import streamlit as st
 import pandas as pd
 from config.settings import BRAND, PLATFORM_COLORS
-from utils.metrics import format_number, delta_indicator
+from utils.metrics import (
+    format_number, delta_indicator, current_and_previous_quarter,
+    quarter_boundaries, quarter_label, compute_quarter_stats,
+)
 from utils.charts import (
     follower_growth_chart,
     engagement_comparison_chart,
     top_posts_table,
+    qoq_comparison_bars,
+    qoq_avg_performance_bars,
+    qoq_content_mix_comparison,
 )
 
 # ============ Page Config ============
@@ -250,6 +256,138 @@ if not metrics_df.empty:
     st.markdown('<div class="section-title">Top Performing Content</div>', unsafe_allow_html=True)
     fig = top_posts_table(top_posts_df)
     st.plotly_chart(fig, use_container_width=True)
+
+    # ============ Quarter-over-Quarter Comparison ============
+
+    @st.cache_data(ttl=3600)
+    def load_qoq_data():
+        try:
+            from storage.bigquery_client import get_posts_by_date_range
+            (cy, cq), (py, pq) = current_and_previous_quarter()
+            curr_start, curr_end = quarter_boundaries(cy, cq)
+            prev_start, prev_end = quarter_boundaries(py, pq)
+            curr_df = get_posts_by_date_range(curr_start, curr_end)
+            prev_df = get_posts_by_date_range(prev_start, prev_end)
+            return curr_df, prev_df, quarter_label(cy, cq), quarter_label(py, pq)
+        except Exception:
+            return pd.DataFrame(), pd.DataFrame(), "", ""
+
+    curr_posts, prev_posts, curr_lbl, prev_lbl = load_qoq_data()
+
+    if not curr_posts.empty or not prev_posts.empty:
+        st.markdown(f"""
+        <div class="section-title">
+            Quarter-over-Quarter: {curr_lbl} vs {prev_lbl}
+        </div>
+        """, unsafe_allow_html=True)
+
+        curr_stats = compute_quarter_stats(curr_posts)
+        prev_stats = compute_quarter_stats(prev_posts)
+
+        # QoQ KPI delta cards
+        qoq_metrics = [
+            ("Posts Published", "total_posts", False),
+            ("Total Views", "total_views", False),
+            ("Total Likes", "total_likes", False),
+            ("Engagement Rate", "engagement_rate", True),
+        ]
+
+        qoq_cols = st.columns(4)
+        for i, (label, key, is_pct) in enumerate(qoq_metrics):
+            with qoq_cols[i]:
+                curr_val = curr_stats[key]
+                prev_val = prev_stats[key]
+
+                if is_pct:
+                    curr_display = f"{curr_val:.2f}%"
+                    prev_display = f"{prev_val:.2f}%"
+                    diff = curr_val - prev_val
+                    diff_display = f"{diff:+.2f}%"
+                else:
+                    curr_display = format_number(curr_val)
+                    prev_display = format_number(prev_val)
+                    diff = curr_val - prev_val
+                    if prev_val > 0:
+                        pct_change = (diff / prev_val) * 100
+                        diff_display = f"{pct_change:+.0f}%"
+                    else:
+                        diff_display = "New"
+
+                if diff > 0:
+                    delta_color = BRAND["success"]
+                    arrow = "^"
+                elif diff < 0:
+                    delta_color = BRAND["danger"]
+                    arrow = "v"
+                else:
+                    delta_color = BRAND["text_muted"]
+                    arrow = ""
+
+                st.markdown(f"""
+                <div style="background: #1A1D29; border: 1px solid rgba(255,255,255,0.06);
+                            border-radius: 14px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: #8A8A9A; text-transform: uppercase;
+                                letter-spacing: 1.2px; margin-bottom: 0.3rem;">{label}</div>
+                    <div style="font-size: 1.3rem; font-weight: 800; color: #E2E2EA;">
+                        {curr_display}
+                    </div>
+                    <div style="font-size: 0.7rem; font-weight: 600; color: {delta_color};">
+                        {arrow} {diff_display} vs {prev_lbl}
+                    </div>
+                    <div style="font-size: 0.6rem; color: #5A5A6A; margin-top: 0.3rem;">
+                        {prev_lbl}: {prev_display}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("")
+
+        # QoQ charts
+        col_left, col_right = st.columns(2)
+
+        with col_left:
+            fig = qoq_comparison_bars(curr_stats, prev_stats, curr_lbl, prev_lbl)
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col_right:
+            fig = qoq_avg_performance_bars(curr_stats, prev_stats, curr_lbl, prev_lbl)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Content mix comparison
+        fig = qoq_content_mix_comparison(curr_posts, prev_posts, curr_lbl, prev_lbl)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Top performers per quarter
+        st.markdown(f"#### Top Performers by Quarter")
+        tcol_left, tcol_right = st.columns(2)
+
+        with tcol_left:
+            st.markdown(f"**{curr_lbl}**")
+            if not curr_posts.empty:
+                top_curr = curr_posts.sort_values("views", ascending=False).head(5).reset_index(drop=True)
+                top_curr.index = top_curr.index + 1
+                cols_show = [c for c in ["title", "post_type", "views", "likes"] if c in top_curr.columns]
+                st.dataframe(
+                    top_curr[cols_show].rename(columns={
+                        "title": "Title", "post_type": "Type",
+                        "views": "Views", "likes": "Likes",
+                    }),
+                    use_container_width=True,
+                )
+
+        with tcol_right:
+            st.markdown(f"**{prev_lbl}**")
+            if not prev_posts.empty:
+                top_prev = prev_posts.sort_values("views", ascending=False).head(5).reset_index(drop=True)
+                top_prev.index = top_prev.index + 1
+                cols_show = [c for c in ["title", "post_type", "views", "likes"] if c in top_prev.columns]
+                st.dataframe(
+                    top_prev[cols_show].rename(columns={
+                        "title": "Title", "post_type": "Type",
+                        "views": "Views", "likes": "Likes",
+                    }),
+                    use_container_width=True,
+                )
 
 else:
     # Empty state — no data yet
